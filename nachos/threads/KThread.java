@@ -1,6 +1,7 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import nachos.threads.Semaphore;
 
 /**
  * A KThread is a thread that can be used to execute Nachos kernel code. Nachos
@@ -78,6 +79,7 @@ public class KThread {
 	public KThread(Runnable target) {
 		this();
 		this.target = target;
+		joinThread=new Semaphore(0);
 	}
 
 	/**
@@ -199,8 +201,11 @@ public class KThread {
 		Machine.interrupt().disable();
 
 		Machine.autoGrader().finishingCurrentThread();
-
+		if(currentThread.joinThread!=null){
+			currentThread.joinThread.V();
+		}
 		Lib.assertTrue(toBeDestroyed == null);
+		
 		toBeDestroyed = currentThread;
 
 		currentThread.status = statusFinished;
@@ -286,7 +291,12 @@ public class KThread {
 		Lib.debug(dbgThread, "Joining to thread: " + toString());
 
 		Lib.assertTrue(this != currentThread);
-
+		
+		if(status!=statusFinished){
+			if(joinThread!=null){
+				joinThread.P();
+			}
+		}
 	}
 
 	/**
@@ -457,4 +467,6 @@ public class KThread {
 	private static KThread currentThread = null;
 	private static KThread toBeDestroyed = null;
 	private static KThread idleThread = null;
+	
+	private Semaphore joinThread=null;
 }
