@@ -79,7 +79,6 @@ public class KThread {
 	public KThread(Runnable target) {
 		this();
 		this.target = target;
-		joinThread=new Semaphore(0);
 	}
 
 	/**
@@ -200,12 +199,17 @@ public class KThread {
 
 		Machine.interrupt().disable();
 
-		Machine.autoGrader().finishingCurrentThread();
-		if(currentThread.joinThread!=null){
+		if (currentThread.joinThread != null) {
+			System.out.println("Signal Joined Thread");
 			currentThread.joinThread.V();
+		} else {
+			System.out.println("Not Signalling Joined Thread");
 		}
+
+		Machine.autoGrader().finishingCurrentThread();
+
 		Lib.assertTrue(toBeDestroyed == null);
-		
+
 		toBeDestroyed = currentThread;
 
 		currentThread.status = statusFinished;
@@ -288,12 +292,13 @@ public class KThread {
 	 * is not guaranteed to return. This thread must not be the current thread.
 	 */
 	public void join() {
-		Lib.debug(dbgThread, "Joining to thread: " + toString());
+		Lib.debug(dbgThread, currentThread + "Joining to thread: " + toString());
 
 		Lib.assertTrue(this != currentThread);
-		
-		if(status!=statusFinished){
-			if(joinThread!=null){
+
+		if (status != statusFinished) {
+			if (joinThread == null) {
+				joinThread=new Semaphore(0);
 				joinThread.P();
 			}
 		}
@@ -405,16 +410,32 @@ public class KThread {
 	}
 
 	private static class PingTest implements Runnable {
+		KThread joining;
+
 		PingTest(int which) {
 			this.which = which;
 		}
 
+		PingTest(int which, KThread joinT) {
+			joining = joinT;
+		}
+
 		public void run() {
 			for (int i = 0; i < 5; i++) {
+				/*
+				 * if(i==0 && which==1){ System.out.println("In Ping 1");
+				 * Lib.assertTrue(joining!=null); joining.join(); }
+				 */
 				System.out.println("*** thread " + which + " looped " + i
 						+ " times");
 				currentThread.yield();
 			}
+
+			if (currentThread.getName() == "forked thread") {
+				System.out.println("Join called");
+				joining.join();
+			}
+
 		}
 
 		private int which;
@@ -423,10 +444,12 @@ public class KThread {
 	/**
 	 * Tests whether this module is working.
 	 */
-	public static void selfTest() {
+	public static void selfTest(KThread join) {
 		Lib.debug(dbgThread, "Enter KThread.selfTest");
 
-		new KThread(new PingTest(1)).setName("forked thread").fork();
+		KThread k = new KThread(new PingTest(1,join));
+		k.setName("forked thread");
+		k.fork();
 		new PingTest(0).run();
 	}
 
@@ -467,6 +490,6 @@ public class KThread {
 	private static KThread currentThread = null;
 	private static KThread toBeDestroyed = null;
 	private static KThread idleThread = null;
-	
-	private Semaphore joinThread=null;
+
+	private Semaphore joinThread = null;
 }

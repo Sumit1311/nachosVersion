@@ -6,6 +6,7 @@ import nachos.machine.*;
  * A multi-threaded OS kernel.
  */
 public class ThreadedKernel extends Kernel {
+	private KThread start;
 	/**
 	 * Allocate a new multi-threaded kernel.
 	 */
@@ -32,7 +33,7 @@ public class ThreadedKernel extends Kernel {
 			fileSystem = null;
 
 		// start threading
-		new KThread(null);
+		start = new KThread(null);
 
 		alarm = new Alarm();
 
@@ -46,7 +47,7 @@ public class ThreadedKernel extends Kernel {
 	 * here.
 	 */
 	public void selfTest() {
-		KThread.selfTest();
+		KThread.selfTest(start);
 		Semaphore.selfTest();
 		SynchList.selfTest();
 		if (Machine.bank() != null) {

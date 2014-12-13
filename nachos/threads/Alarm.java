@@ -1,5 +1,13 @@
 package nachos.threads;
 
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Set;
+
+import sun.nio.cs.ext.MacIceland;
+
 import nachos.machine.*;
 
 /**
@@ -20,6 +28,8 @@ public class Alarm {
 				timerInterrupt();
 			}
 		});
+		waitingThreads=new HashMap<Long,LinkedList<KThread>>();
+		mapLock=new Lock();
 	}
 
 	/**
@@ -30,6 +40,20 @@ public class Alarm {
 	 */
 	public void timerInterrupt() {
 		KThread.currentThread().yield();
+		Long time=Machine.timer().getTime();
+		mapLock.acquire();
+		Iterator<Long> keySet=waitingThreads.keySet().iterator();
+		for(int i=0;keySet.hasNext() ;i++){
+			long wait=keySet.next();
+			if(wait<=time){
+				LinkedList<KThread> lst=waitingThreads.get(wait);
+				for(int j=0;j<lst.size();j++){
+					lst.get(j).ready();
+					lst.remove(j);
+				}
+			}
+		}
+		mapLock.release();
 	}
 
 	/**
@@ -48,7 +72,20 @@ public class Alarm {
 	public void waitUntil(long x) {
 		// for now, cheat just to get something working (busy waiting is bad)
 		long wakeTime = Machine.timer().getTime() + x;
-		while (wakeTime > Machine.timer().getTime())
-			KThread.yield();
+		/*while (wakeTime > Machine.timer().getTime())
+			KThread.yield();*/
+		
+		KThread current=KThread.currentThread();
+		mapLock.acquire();
+		LinkedList<KThread> lst=new LinkedList<KThread>();
+		lst.add(current);
+		waitingThreads.put(x, lst);
+		mapLock.release();
+		boolean stat=Machine.interrupt().disable();
+		KThread.sleep();
+		Machine.interrupt().setStatus(stat);
 	}
+	
+	private Map<Long, LinkedList<KThread>> waitingThreads;
+	private Lock mapLock;
 }
